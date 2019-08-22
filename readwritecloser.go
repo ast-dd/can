@@ -96,7 +96,9 @@ func (rwc *readWriteCloser) ReadFrame(frame *Frame) error {
 
 	for _, cm := range cms {
 		if cm.Header.Level == syscall.SOL_SOCKET && cm.Header.Type == syscall.SO_TIMESTAMP {
-			UnmarshalTimestamp(cm.Data, frame)
+			if err := UnmarshalTimestamp(cm.Data, frame); err != nil {
+				return err
+			}
 		}
 	}
 
