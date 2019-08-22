@@ -6,6 +6,8 @@ import (
 	"net"
 	"os"
 	"syscall"
+
+	"golang.org/x/sys/unix"
 )
 
 // The Reader interface extends the `io.Reader` interface by method
@@ -31,16 +33,6 @@ type ReadWriteCloser interface {
 	io.Closer
 }
 
-// Socket protocols
-const (
-	Raw   uint8 = 1 // CAN_RAW
-	Bcm   uint8 = 2 // CAN_BCM
-	TP16  uint8 = 3
-	TP20  uint8 = 4
-	MCNet uint8 = 5
-	ISOTp uint8 = 6
-)
-
 type readWriteCloser struct {
 	rwc        io.ReadWriteCloser
 	readSocket int
@@ -48,19 +40,17 @@ type readWriteCloser struct {
 
 // NewReadWriteCloserForInterface returns a ReadWriteCloser for a network interface.
 func NewReadWriteCloserForInterface(i *net.Interface) (ReadWriteCloser, error) {
-	proto := Raw
-	s, err := syscall.Socket(AF_CAN, syscall.SOCK_RAW, int(proto) /* 0? */)
+	s, err := syscall.Socket(syscall.AF_CAN, syscall.SOCK_RAW, unix.CAN_RAW)
 	if err != nil {
 		return nil, err
 	}
 
-	addr := NewSockaddr(uint16(proto) /* can.AF_CAN? */, i.Index /* 0  for all interfaces? */)
-
-	if err := syscall.Bind(s, addr); err != nil {
+	addr := &unix.SockaddrCAN{Ifindex: i.Index}
+	if err := unix.Bind(s, addr); err != nil {
 		return nil, err
 	}
 
-	if err := syscall.SetsockoptInt(s, syscall.SOL_SOCKET, syscall.SO_TIMESTAMP, 1); err != nil {
+	if err := syscall.SetsockoptInt(s, unix.SOL_SOCKET, unix.SO_TIMESTAMP, 1); err != nil {
 		return nil, err
 	}
 
